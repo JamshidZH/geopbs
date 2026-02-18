@@ -14,24 +14,46 @@ jobs:
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v2
 
-      - name: Restore NuGet
-        shell: pwsh
-        run: |
-          $sln = Get-ChildItem -Recurse -Filter *.sln | Select-Object -First 1
-          if (-not $sln) { throw "No .sln found in repo. If this repo has only .csproj, tell me and I’ll adjust the workflow." }
-          nuget restore $sln.FullName
+      - name: Install NuGet
+        uses: NuGet/setup-nuget@v2
 
-      - name: Build (Release)
+      # Retarget .NET Framework v4.0 -> v4.6.2 so hosted runner can build
+      - name: Retarget projects to .NET Framework 4.6.2
         shell: pwsh
         run: |
-          $sln = Get-ChildItem -Recurse -Filter *.sln | Select-Object -First 1
-          msbuild $sln.FullName /m /p:Configuration=Release /p:Platform="Any CPU"
+          $files = @(
+            "PortableBasemapServer\PortableBasemapServer.csproj",
+            "PBSRestService\PBS.csproj"
+          )
+
+          foreach ($f in $files) {
+            if (-not (Test-Path $f)) { throw "Missing project file: $f" }
+
+            $xml = Get-Content $f -Raw
+
+            # old-style csproj
+            $xml = $xml -replace "<TargetFrameworkVersion>v4\.0</TargetFrameworkVersion>", "<TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>"
+            $xml = $xml -replace "<TargetFrameworkVersion>v4\.0</TargetFrameworkVersion>", "<TargetFrameworkVersion>v4.6.2</TargetFrameworkVersion>"
+
+            Set-Content -Path $f -Value $xml -Encoding UTF8
+          }
+
+      - name: Restore NuGet for projects
+        shell: pwsh
+        run: |
+          nuget restore PortableBasemapServer\PortableBasemapServer.csproj
+          nuget restore PBSRestService\PBS.csproj
+
+      - name: Build projects (Release x86)
+        shell: pwsh
+        run: |
+          msbuild PortableBasemapServer\PortableBasemapServer.csproj /m /t:Rebuild /p:Configuration=Release /p:Platform="x86"
+          msbuild PBSRestService\PBS.csproj /m /t:Rebuild /p:Configuration=Release /p:Platform="x86"
 
       - name: Upload build output
         uses: actions/upload-artifact@v4
         with:
           name: build-output
           path: |
-            **\bin\Release\**
-            **\bin\x86\Release\**
-            **\bin\AnyCPU\Release\**
+            PortableBasemapServer\bin\**
+            PBSRestService\bin\**
