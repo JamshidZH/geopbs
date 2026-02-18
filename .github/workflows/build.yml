@@ -1,0 +1,37 @@
+name: Build Portable Basemap Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Restore NuGet
+        shell: pwsh
+        run: |
+          $sln = Get-ChildItem -Recurse -Filter *.sln | Select-Object -First 1
+          if (-not $sln) { throw "No .sln found in repo. If this repo has only .csproj, tell me and I’ll adjust the workflow." }
+          nuget restore $sln.FullName
+
+      - name: Build (Release)
+        shell: pwsh
+        run: |
+          $sln = Get-ChildItem -Recurse -Filter *.sln | Select-Object -First 1
+          msbuild $sln.FullName /m /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            **\bin\Release\**
+            **\bin\x86\Release\**
+            **\bin\AnyCPU\Release\**
