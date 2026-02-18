@@ -44,7 +44,16 @@ jobs:
           nuget restore PortableBasemapServer\PortableBasemapServer.csproj
           nuget restore PBSRestService\PBS.csproj
 
-      - name: Build projects (Release x86)
+      - name: Build PBSRestService (Release Any CPU)
+        shell: pwsh
+        run: |
+          msbuild PBSRestService\PBS.csproj /m /t:Rebuild /p:Configuration=Release /p:Platform="Any CPU"
+
+      - name: Build PortableBasemapServer (Release x86)
+        shell: pwsh
+        run: |
+          msbuild PortableBasemapServer\PortableBasemapServer.csproj /m /t:Rebuild /p:Configuration=Release /p:Platform="x86"
+
         shell: pwsh
         run: |
           msbuild PortableBasemapServer\PortableBasemapServer.csproj /m /t:Rebuild /p:Configuration=Release /p:Platform="x86"
